@@ -1,79 +1,141 @@
 "use client";
-import { useState } from "react";
-import FormInput from "./../components/FormInput";
+import { useEffect, useState } from "react";
+import { useMembers } from "./../hooks/useMembers";
 import DataTable from "./../components/DataTable";
 
 export default function MembersPage() {
-  const [members, setMembers] = useState([]);
-  const [form, setForm] = useState({ fname: "", lname: "", jinsia: "Male" });
+  const { members, loading, fetchMembers, addMember } = useMembers();
+  const [form, setForm] = useState({
+    namba: "",
+    fname: "",
+    lname: "",
+    jinsia: "Me",
+    hisa_anzia: "",
+    jamii_anzia: "",
+  });
 
-  function handleAdd(e) {
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const id = String(members.length + 1).padStart(3, "0");
-    const newMember = {
-      Namba: id,
-      Jina: `${form.fname} ${form.lname}`,
-      Jinsia: form.jinsia,
-    };
-    setMembers((s) => [newMember, ...s]);
-    setForm({ fname: "", lname: "", jinsia: "Male" });
-  }
+    if (!form.namba || !form.fname || !form.lname) {
+      alert("Tafadhali jaza taarifa zote muhimu.");
+      return;
+    }
+
+    await addMember(form);
+    setForm({
+      namba: "",
+      fname: "",
+      lname: "",
+      jinsia: "Me",
+      hisa_anzia: "",
+      jamii_anzia: "",
+    });
+    fetchMembers();
+  };
+
+  const formatted = (members || []).map((m) => ({
+    Namba: m.namba,
+    Jina: `${m.fname} ${m.lname}`,
+    Jinsia: m.jinsia,
+    Hisa_Anzia: m.hisa_anzia,
+    Jamii_Anzia: m.jamii_anzia,
+  }));
 
   return (
-    <section className="max-w-5xl mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Register Member</h1>
+    <section className="max-w-7xl mx-auto py-8 px-4">
+      <h1 className="text-4xl font-extrabold mb-8 text-gray-800">
+        Sajili Mwana Kikundi
+      </h1>
 
+      {/* --- Add Member Form --- */}
       <form
-        onSubmit={handleAdd}
-        className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-6 rounded-2xl shadow-md border border-gray-100"
+        onSubmit={handleSubmit}
+        className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-8 rounded-3xl shadow-lg border border-gray-100 mb-12"
       >
-        <FormInput
-          id="fname"
-          label="First name"
-          value={form.fname}
-          onChange={(e) => setForm((f) => ({ ...f, fname: e.target.value }))}
-        />
-        <FormInput
-          id="lname"
-          label="Last name"
-          value={form.lname}
-          onChange={(e) => setForm((f) => ({ ...f, lname: e.target.value }))}
-        />
+        {[ 
+          { id: "namba", label: "Namba ya Mwanachama", type: "text" },
+          { id: "fname", label: "Jina la Kwanza", type: "text" },
+          { id: "lname", label: "Jina la Mwisho", type: "text" },
+          { id: "hisa_anzia", label: "Hisa Anzia", type: "number" },
+          { id: "jamii_anzia", label: "Jamii Anzia", type: "number" },
+        ].map((field) => (
+          <div key={field.id}>
+            <label className="text-sm text-gray-500 font-semibold mb-2 block">
+              {field.label}
+            </label>
+            <input
+              type={field.type}
+              value={form[field.id]}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, [field.id]: e.target.value }))
+              }
+              className="w-full border border-gray-300 rounded-xl px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
+            />
+          </div>
+        ))}
+
+        {/* Jinsia */}
         <div>
-          <label className="text-sm text-gray-600 font-medium mb-1 block">Jinsia</label>
+          <label className="text-sm text-gray-500 font-semibold mb-2 block">
+            Jinsia
+          </label>
           <select
             value={form.jinsia}
-            onChange={(e) => setForm((f) => ({ ...f, jinsia: e.target.value }))}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition"
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, jinsia: e.target.value }))
+            }
+            className="w-full border border-gray-300 rounded-xl px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
           >
-            <option>ME</option>
-            <option>KE</option>
+            <option value="Me">ME</option>
+            <option value="Ke">KE</option>
           </select>
         </div>
 
-        <div className="md:col-span-3 flex gap-3 mt-4">
+        {/* Buttons */}
+        <div className="md:col-span-3 flex gap-4 mt-6">
           <button
             type="submit"
-            className="px-5 py-2 bg-primary text-white rounded-lg shadow hover:bg-primary/90 transition"
+            className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl shadow hover:bg-blue-700 transition"
           >
-            Register Member
+            Sajili Mwanachama
           </button>
           <button
             type="button"
-            onClick={() => setMembers([])}
-            className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            onClick={() =>
+              setForm({
+                namba: "",
+                fname: "",
+                lname: "",
+                jinsia: "Me",
+                hisa_anzia: "",
+                jamii_anzia: "",
+              })
+            }
+            className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition"
           >
-            Clear List
+            Futa Fomu
           </button>
         </div>
       </form>
 
-      <div className="mt-10">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">Members List</h2>
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-auto">
-          <DataTable columns={["Namba", "Jina", "Jinsia"]} rows={members} />
+      {/* --- Members Table --- */}
+      <h2 className="text-2xl font-bold mb-6 text-gray-700">
+        Orodha ya Wanachama
+      </h2>
+      {loading ? (
+        <p className="text-gray-500">Inapakia wanachama...</p>
+      ) : (
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-auto">
+          <DataTable
+            columns={["Namba", "Jina", "Jinsia", "Hisa_Anzia", "Jamii_Anzia"]}
+            rows={formatted}
+          />
         </div>
-      </div>
+      )}
     </section>
   );
 }
