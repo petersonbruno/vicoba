@@ -1,82 +1,109 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import FormInput from "./../../components/FormInput";
 import DataTable from "./../../components/DataTable";
+import { useMembers } from "../../hooks/useMembers";
+import { useLoans } from "../../hooks/useLoans";
 
 export default function BusinessLoanPage() {
-  const [rows, setRows] = useState([]);
+  const { members, loading: loadingMembers, fetchMembers } = useMembers();
+  const { loans, loading: loadingLoans, fetchLoans, addLoan } = useLoans();
+
   const [form, setForm] = useState({
-    namba: "",
-    jina: "",
-    jinsia: "Male",
+    member_id: "",
     tarehe: "",
-    kiasi: "",
+    amount: "",
     nyongeza: "",
     bima: "",
-    tareheKulejesha: "",
-    ainaBiashara: "",
+    tarehe_kulejesha: "",
+    aina_biashara: "",
   });
 
-  // Calculate total loan dynamically
-  const totalLoan = Number(form.kiasi || 0) + Number(form.nyongeza || 0);
+  useEffect(() => {
+    fetchMembers();
+    fetchLoans();
+  }, []);
 
-  function addLoan(e) {
+  const totalLoan =
+    Number(form.amount || 0) + Number(form.nyongeza || 0);
+
+  async function handleAdd(e) {
     e.preventDefault();
-    const newRecord = {
-      Namba: form.namba || "-",
-      Jina: form.jina,
-      Jinsia: form.jinsia,
-      "Tarehe ya kuchukua": form.tarehe,
-      Kiasi: form.kiasi,
-      Nyongeza: form.nyongeza,
-      "Jumla ya Mkopo": totalLoan,
-      Bima: form.bima,
-      "Tarehe ya kulejesha": form.tareheKulejesha,
-      "Aina ya Biashara": form.ainaBiashara,
-    };
-    setRows((r) => [newRecord, ...r]);
+
+    if (!form.member_id || !form.amount) {
+      alert("Tafadhali chagua mwanachama na weka kiasi cha mkopo!");
+      return;
+    }
+
+    await addLoan({
+      member_id: form.member_id,
+      tarehe: form.tarehe,
+      amount: form.amount,
+      nyongeza: form.nyongeza,
+      bima: form.bima,
+      tarehe_kulejesha: form.tarehe_kulejesha,
+      aina_biashara: form.aina_biashara,
+    });
+
     setForm({
-      namba: "",
-      jina: "",
-      jinsia: "Male",
+      member_id: "",
       tarehe: "",
-      kiasi: "",
+      amount: "",
       nyongeza: "",
       bima: "",
-      tareheKulejesha: "",
-      ainaBiashara: "",
+      tarehe_kulejesha: "",
+      aina_biashara: "",
     });
+
+    fetchLoans();
   }
+
+  const formatted = (loans || []).map((loan) => ({
+    Namba: loan.member_number || "-",
+    Jina: loan.member_name || "-",
+    Jinsia: loan.member_gender || "-",
+    "Tarehe ya kuchukua": new Date(loan.tarehe).toLocaleDateString(),
+    Kiasi: loan.amount,
+    Nyongeza: loan.nyongeza,
+    "Jumla ya Mkopo": loan.total_loan,
+    Bima: loan.bima,
+    "Tarehe ya kulejesha": loan.tarehe_kulejesha
+      ? new Date(loan.tarehe_kulejesha).toLocaleDateString()
+      : "-",
+    "Aina ya Biashara": loan.aina_biashara,
+  }));
 
   return (
     <section className="max-w-6xl mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Mikopo ya Biashara (Business Loan)</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">
+        Mikopo ya Biashara (Business Loan)
+      </h1>
 
       <form
-        onSubmit={addLoan}
+        onSubmit={handleAdd}
         className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4"
       >
-        <FormInput
-          id="namba"
-          label="Namba ya Mwanachama"
-          value={form.namba}
-          onChange={(e) => setForm((f) => ({ ...f, namba: e.target.value }))}
-        />
-        <FormInput
-          id="jina"
-          label="Jina la Mkopaji"
-          value={form.jina}
-          onChange={(e) => setForm((f) => ({ ...f, jina: e.target.value }))}
-        />
+        {/* Member dropdown */}
         <div>
-          <label className="text-sm text-gray-600 font-medium mb-1 block">Jinsia</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Chagua Mwanachama
+          </label>
           <select
-            value={form.jinsia}
-            onChange={(e) => setForm((f) => ({ ...f, jinsia: e.target.value }))}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition"
+            id="member"
+            value={form.member_id}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, member_id: e.target.value }))
+            }
+            className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            <option>Male</option>
-            <option>Female</option>
+            <option value="">
+              {loadingMembers ? "Inapakia..." : "Tafuta Mwanachama"}
+            </option>
+            {members.map((m) => (
+              <option key={`${m.id}-${m.namba}`} value={m.id}>
+                {m.namba} - {m.fname} {m.lname}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -87,13 +114,15 @@ export default function BusinessLoanPage() {
           value={form.tarehe}
           onChange={(e) => setForm((f) => ({ ...f, tarehe: e.target.value }))}
         />
+
         <FormInput
-          id="kiasi"
+          id="amount"
           label="Kiasi cha Mkopo"
           type="number"
-          value={form.kiasi}
-          onChange={(e) => setForm((f) => ({ ...f, kiasi: e.target.value }))}
+          value={form.amount}
+          onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
         />
+
         <FormInput
           id="nyongeza"
           label="Nyongeza ya Mkopo"
@@ -108,49 +137,65 @@ export default function BusinessLoanPage() {
           value={form.bima}
           onChange={(e) => setForm((f) => ({ ...f, bima: e.target.value }))}
         />
+
         <FormInput
-          id="tareheKulejesha"
+          id="tarehe_kulejesha"
           label="Tarehe ya Kulejesha"
           type="date"
-          value={form.tareheKulejesha}
-          onChange={(e) => setForm((f) => ({ ...f, tareheKulejesha: e.target.value }))}
-        />
-        <FormInput
-          id="ainaBiashara"
-          label="Aina ya Biashara"
-          value={form.ainaBiashara}
-          onChange={(e) => setForm((f) => ({ ...f, ainaBiashara: e.target.value }))}
+          value={form.tarehe_kulejesha}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, tarehe_kulejesha: e.target.value }))
+          }
         />
 
-        <div className="md:col-span-3 flex justify-end mt-4">
+        <FormInput
+          id="aina_biashara"
+          label="Aina ya Biashara"
+          value={form.aina_biashara}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, aina_biashara: e.target.value }))
+          }
+        />
+
+        <div className="md:col-span-3 mt-4 text-right">
+          <p className="text-gray-700 mb-2">
+            <strong>Jumla ya Mkopo:</strong> {totalLoan.toLocaleString()} TZS
+          </p>
           <button
             type="submit"
             className="px-5 py-2 bg-primary text-white rounded-lg shadow hover:bg-primary/90 transition"
           >
-            Add Loan
+            Ongeza Mkopo
           </button>
         </div>
       </form>
 
+      {/* Table */}
       <div className="mt-10">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">Business Loans Records</h2>
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-auto">
-          <DataTable
-            columns={[
-              "Namba",
-              "Jina",
-              "Jinsia",
-              "Tarehe ya kuchukua",
-              "Kiasi",
-              "Nyongeza",
-              "Jumla ya Mkopo",
-              "Bima",
-              "Tarehe ya kulejesha",
-              "Aina ya Biashara",
-            ]}
-            rows={rows}
-          />
-        </div>
+        <h2 className="text-xl font-semibold mb-4 text-gray-700">
+          Rekodi za Mikopo
+        </h2>
+        {loadingLoans ? (
+          <p>Inapakia mikopo...</p>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-auto">
+            <DataTable
+              columns={[
+                "Namba",
+                "Jina",
+                "Jinsia",
+                "Tarehe ya kuchukua",
+                "Kiasi",
+                "Nyongeza",
+                "Jumla ya Mkopo",
+                "Bima",
+                "Tarehe ya kulejesha",
+                "Aina ya Biashara",
+              ]}
+              rows={formatted}
+            />
+          </div>
+        )}
       </div>
     </section>
   );

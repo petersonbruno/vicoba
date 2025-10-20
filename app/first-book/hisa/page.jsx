@@ -9,7 +9,13 @@ export default function HisaPage() {
   const { members, loading: loadingMembers, fetchMembers } = useMembers();
   const { hisaList, loading: loadingHisa, fetchHisa, addHisa } = useHisa();
 
-  const [form, setForm] = useState({ member_id: "", kiasi: "" });
+  const [form, setForm] = useState({
+    member_id: "",
+    kiasi: "",
+    week_number: "",
+  });
+  const [selectedWeek, setSelectedWeek] = useState(""); // 🟢 for filtering
+  const [uniqueWeeks, setUniqueWeeks] = useState([]); // 🟢 store unique week numbers
 
   // Load members + hisa records
   useEffect(() => {
@@ -17,23 +23,34 @@ export default function HisaPage() {
     fetchHisa();
   }, []);
 
+  // Extract unique week numbers from hisaList
+  useEffect(() => {
+    const weeks = [
+      ...new Set(
+        hisaList
+          .map((h) => h.week_number)
+          .filter((w) => w !== null && w !== undefined && w !== "")
+      ),
+    ];
+    setUniqueWeeks(weeks.sort((a, b) => a - b));
+  }, [hisaList]);
+
   async function handleAdd(e) {
     e.preventDefault();
 
-    if (!form.member_id || !form.kiasi) {
-      alert("Please select a member and enter Hisa amount!");
+    if (!form.member_id || !form.kiasi || !form.week_number) {
+      alert("Tafadhali jaza taarifa zote muhimu!");
       return;
     }
 
     try {
-      // Send only ID and numeric value
       await addHisa({
         member_id: form.member_id,
         kiasi: form.kiasi,
+        week_number: form.week_number,
       });
 
-      // Reset form and refresh table
-      setForm({ member_id: "", kiasi: "" });
+      setForm({ member_id: "", kiasi: "", week_number: "" });
       fetchHisa();
     } catch (error) {
       console.error(
@@ -42,22 +59,27 @@ export default function HisaPage() {
       );
       alert(
         error.response?.data?.error ||
-          "Failed to add Hisa. Check your input data."
+          "Imeshindikana kuongeza hisa. Hakikisha taarifa ni sahihi."
       );
     }
   }
 
-  // Format table for display
-  const formatted = (hisaList || []).map((h) => ({
+  // 🔹 Filter Hisa records by selected week number
+  const filteredHisa = selectedWeek
+    ? hisaList.filter((h) => String(h.week_number) === String(selectedWeek))
+    : hisaList;
+
+  const formatted = (filteredHisa || []).map((h) => ({
     Member: h.member_name || "-",
     Hisa: h.kiasi,
+    Week: h.week_number || "-",
     Date: new Date(h.tarehe).toLocaleString(),
   }));
 
   return (
     <section className="max-w-5xl mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6 text-gray-800">
-       Hisa za Wanachama
+        Hisa za Wanachama
       </h1>
 
       {/* --- Add Hisa Form --- */}
@@ -71,18 +93,18 @@ export default function HisaPage() {
             htmlFor="member"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-           Chagua Mwanachama
+            Chagua Mwanachama
           </label>
           <select
             id="member"
-            value={form.member_id} // <-- use member_id here
+            value={form.member_id}
             onChange={(e) =>
               setForm((f) => ({ ...f, member_id: e.target.value }))
-            } // <-- update member_id
+            }
             className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">
-              {loadingMembers ? "Loading..." : "Tafuta Mwanachama"}
+              {loadingMembers ? "Inapakia..." : "Tafuta Mwanachama"}
             </option>
             {members.map((m) => (
               <option key={`${m.id}-${m.namba}`} value={m.id}>
@@ -95,10 +117,21 @@ export default function HisaPage() {
         {/* Hisa input */}
         <FormInput
           id="kiasi"
-          label="Hisa Amount (TZS)"
+          label="Kiasi cha Hisa (TZS)"
           type="number"
           value={form.kiasi}
           onChange={(e) => setForm((f) => ({ ...f, kiasi: e.target.value }))}
+        />
+
+        {/* Week number input */}
+        <FormInput
+          id="week_number"
+          label="Namba ya Wiki"
+          type="number"
+          value={form.week_number}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, week_number: e.target.value }))
+          }
         />
 
         {/* Submit button */}
@@ -114,14 +147,37 @@ export default function HisaPage() {
 
       {/* --- Hisa Table --- */}
       <div className="mt-10">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">
-         Rekodi za Hisa
-        </h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-700">
+            Rekodi za Hisa
+          </h2>
+
+          {/* 🔹 Week Filter Dropdown */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Chuja kwa Wiki:</label>
+            <select
+              value={selectedWeek}
+              onChange={(e) => setSelectedWeek(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Zote</option>
+              {uniqueWeeks.map((w) => (
+                <option key={w} value={w}>
+                  Wiki {w}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {loadingHisa ? (
-          <p>Loading Hisa records...</p>
+          <p>Inapakia rekodi za hisa...</p>
         ) : (
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-auto">
-            <DataTable columns={["Member", "Hisa", "Date"]} rows={formatted} />
+            <DataTable
+              columns={["Member", "Hisa", "Week", "Date"]}
+              rows={formatted}
+            />
           </div>
         )}
       </div>

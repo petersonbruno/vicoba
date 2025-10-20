@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import FormInput from "./../../components/FormInput";
 import DataTable from "./../../components/DataTable";
 import { useMembers } from "../../hooks/useMembers";
-import { useJamii } from "../../hooks/useJamii"; // new hook
+import { useJamii } from "../../hooks/useJamii";
 
 export default function JamiiPage() {
   const { members, loading: loadingMembers, fetchMembers } = useMembers();
@@ -14,7 +14,10 @@ export default function JamiiPage() {
     afya: "",
     jamii: "",
     uendeshaji: "",
+    week_number: "",
   });
+
+  const [weekFilter, setWeekFilter] = useState("");
 
   useEffect(() => {
     fetchMembers();
@@ -24,9 +27,9 @@ export default function JamiiPage() {
   async function handleAdd(e) {
     e.preventDefault();
 
-    const { member_id, afya, jamii, uendeshaji } = form;
-    if (!member_id || !afya || !jamii || !uendeshaji) {
-      alert("Tafadhali jaza viwanja vyote vya Afya, Jamii na Uendeshaji!");
+    const { member_id, afya, jamii, uendeshaji, week_number } = form;
+    if (!member_id || !afya || !jamii || !uendeshaji || !week_number) {
+      alert("Tafadhali jaza viwanja vyote!");
       return;
     }
 
@@ -36,9 +39,17 @@ export default function JamiiPage() {
         afya,
         jamii,
         uendeshaji,
+        week_number,
       });
 
-      setForm({ member_id: "", afya: "", jamii: "", uendeshaji: "" });
+      setForm({
+        member_id: "",
+        afya: "",
+        jamii: "",
+        uendeshaji: "",
+        week_number: "",
+      });
+
       fetchJamii();
     } catch (error) {
       console.error(
@@ -52,16 +63,29 @@ export default function JamiiPage() {
     }
   }
 
-  const formatted = (jamiiList || []).map((j) => ({
+  // 🧮 Unique week numbers for dropdown filter
+  const weekNumbers = Array.from(
+    new Set((jamiiList || []).map((j) => j.week_number))
+  ).sort((a, b) => a - b);
+
+  // 📅 Filter by week if selected
+  const filteredJamii =
+    weekFilter && weekFilter !== ""
+      ? jamiiList.filter((j) => j.week_number === parseInt(weekFilter))
+      : jamiiList;
+
+  // 📋 Format table data
+  const formatted = (filteredJamii || []).map((j) => ({
     Member: j.member_name || "-",
     Afya: j.afya,
     Jamii: j.jamii,
     Uendeshaji: j.uendeshaji,
+    Week: j.week_number,
     Date: new Date(j.tarehe).toLocaleString(),
   }));
 
   return (
-    <section className="max-w-5xl mx-auto py-6">
+    <section className="max-w-6xl mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6 text-gray-800">
         Michango ya Jamii
       </h1>
@@ -69,10 +93,10 @@ export default function JamiiPage() {
       {/* --- Add Jamii Form --- */}
       <form
         onSubmit={handleAdd}
-        className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-4"
+        className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 grid grid-cols-1 md:grid-cols-5 gap-4"
       >
         {/* Member dropdown */}
-        <div className="md:col-span-1">
+        <div>
           <label
             htmlFor="member"
             className="block text-sm font-medium text-gray-700 mb-1"
@@ -81,14 +105,14 @@ export default function JamiiPage() {
           </label>
           <select
             id="member"
-            value={form.member_id} // <-- use member_id here
+            value={form.member_id}
             onChange={(e) =>
               setForm((f) => ({ ...f, member_id: e.target.value }))
-            } // <-- update member_id
+            }
             className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">
-              {loadingMembers ? "Loading..." : "Tafuta Mwanachama"}
+              {loadingMembers ? "Inapakia..." : "Tafuta Mwanachama"}
             </option>
             {members.map((m) => (
               <option key={`${m.id}-${m.namba}`} value={m.id}>
@@ -98,7 +122,7 @@ export default function JamiiPage() {
           </select>
         </div>
 
-        {/* Afya, Jamii, Uendeshaji Inputs */}
+        {/* Afya, Jamii, Uendeshaji, Week */}
         <FormInput
           id="afya"
           label="Afya (TZS)"
@@ -122,9 +146,18 @@ export default function JamiiPage() {
             setForm((f) => ({ ...f, uendeshaji: e.target.value }))
           }
         />
+        <FormInput
+          id="week_number"
+          label="Namba ya Wiki"
+          type="number"
+          value={form.week_number}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, week_number: e.target.value }))
+          }
+        />
 
-        {/* Submit button */}
-        <div className="md:col-span-4 flex justify-end mt-4">
+        {/* Submit */}
+        <div className="md:col-span-5 flex justify-end mt-4">
           <button
             type="submit"
             className="px-5 py-2 bg-primary text-white rounded-lg shadow hover:bg-primary/90 transition"
@@ -136,15 +169,41 @@ export default function JamiiPage() {
 
       {/* --- Jamii Table --- */}
       <div className="mt-10">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">
-          Rekodi za Michango ya Jamii
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-700">
+            Rekodi za Michango ya Jamii
+          </h2>
+
+          {/* Week Filter Dropdown */}
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="weekFilter"
+              className="text-sm text-gray-600 font-medium"
+            >
+              Chuja kwa Wiki:
+            </label>
+            <select
+              id="weekFilter"
+              value={weekFilter}
+              onChange={(e) => setWeekFilter(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Zote</option>
+              {weekNumbers.map((w) => (
+                <option key={w} value={w}>
+                  Wiki {w}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {loadingJamii ? (
-          <p>Loading Jamii records...</p>
+          <p className="text-gray-500">Inapakia rekodi...</p>
         ) : (
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-auto">
             <DataTable
-              columns={["Member", "Afya", "Jamii", "Uendeshaji", "Date"]}
+              columns={["Member", "Afya", "Jamii", "Uendeshaji", "Week", "Date"]}
               rows={formatted}
             />
           </div>

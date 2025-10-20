@@ -33,6 +33,8 @@ export default function Sidebar() {
 
         {/* Members */}
         <NavItem href="/members" label="Members" Icon={Users} />
+        {/* Attendence */}
+        <NavItem href="/attendance" label="Attendances" Icon={Users} />
 
         {/* First Book */}
         <div className="mt-4">
@@ -55,6 +57,22 @@ export default function Sidebar() {
           />
           <NavItem
             href="/second-book/jamii"
+            label="Mikopo - Jamii"
+            Icon={Wallet}
+          />
+        </div>
+        {/* Theard Book */}
+        <div className="mt-4">
+          <span className="text-xs font-semibold text-gray-400 uppercase mb-2 block">
+            Account Book
+          </span>
+          <NavItem
+            href="/weekly-summary"
+            label="Weekly-Summary"
+            Icon={CreditCard}
+          />
+          <NavItem
+            href="*"
             label="Mikopo - Jamii"
             Icon={Wallet}
           />

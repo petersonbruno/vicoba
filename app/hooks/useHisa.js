@@ -26,6 +26,8 @@ export function useHisa() {
       const payload = {
         member: parseInt(data.member_id), // ensure numeric ID
         kiasi: parseFloat(data.kiasi),    // ensure numeric amount
+        week_number: parseInt(data.week_number), // ensure numeric week number
+
       };
 
       // console.log("📤 Sending Hisa data to backend:", data);

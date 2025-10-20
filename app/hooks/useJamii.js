@@ -25,6 +25,8 @@ export function useJamii() {
         afya: parseFloat(data.afya),
         jamii: parseFloat(data.jamii),
         uendeshaji: parseFloat(data.uendeshaji),
+        week_number: parseInt(data.week_number), // ensure numeric week number
+
       });
     } catch (error) {
       console.error("Failed to add Jamii:", error.response?.data || error.message);
