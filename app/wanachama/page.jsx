@@ -1,72 +1,64 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import { useMembers } from "../../hooks/useMembers";
-import { useCommunityLoans } from "../../hooks/useCommunityLoans";
-import { useRouter, usePathname } from "next/navigation";
+import { useMembers } from "../hooks/useMembers";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
-export default function CommunityLoanPage() {
-  const { members, loading: loadingMembers, fetchMembers } = useMembers();
-  const {
-    loans,
-    loading: loadingLoans,
-    fetchLoans,
-    addLoan,
-  } = useCommunityLoans();
-  const router = useRouter();
+export default function WanachamaPage() {
+  const { members, loading, fetchMembers, addMember } = useMembers();
   const pathname = usePathname();
-
-  const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
   const [showForm, setShowForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [form, setForm] = useState({
-    member_id: "",
-    jinsia: "",
-    amount: "",
-    mfuko_wa_mkopo: "",
-    matumizi_ya_mkopo: "",
-    tarehe: "",
-    tarehe_kulejesha: "",
+    namba: "",
+    fname: "",
+    lname: "",
+    jinsia: "Me",
+    hisa_anzia: "",
+    jamii_anzia: "",
+    tarehe_uanachama: "",
+    simu: "",
+    cheo: "",
   });
 
   useEffect(() => {
     fetchMembers();
-    fetchLoans();
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!form.member_id || !form.amount) {
-      alert("Tafadhali chagua mwanachama na weka kiasi cha mkopo!");
+    if (!form.namba || !form.fname || !form.lname) {
+      alert("Tafadhali jaza taarifa zote muhimu.");
       return;
     }
 
-    try {
-      await addLoan(form);
-      setForm({
-        member_id: "",
-        jinsia: "",
-        amount: "",
-        mfuko_wa_mkopo: "",
-        matumizi_ya_mkopo: "",
-        tarehe: "",
-        tarehe_kulejesha: "",
-      });
-      fetchLoans();
-      setShowForm(false);
-    } catch (error) {
-      alert("Imeshindwa kuongeza mkopo. Tafadhali jaribu tena.");
-    }
+    await addMember(form);
+    setForm({
+      namba: "",
+      fname: "",
+      lname: "",
+      jinsia: "Me",
+      hisa_anzia: "",
+      jamii_anzia: "",
+      tarehe_uanachama: "",
+      simu: "",
+      cheo: "",
+    });
+    fetchMembers();
+    setShowForm(false);
   };
 
-  // Filter loans based on search query
-  const filteredLoans = (loans || []).filter((loan) => {
-    const memberName = loan.member_name?.toLowerCase() || "";
+  // Filter members based on search query
+  const filteredMembers = (members || []).filter((member) => {
+    const fullName = `${member.fname} ${member.lname}`.toLowerCase();
     const searchLower = searchQuery.toLowerCase();
     return (
-      memberName.includes(searchLower) ||
-      loan.member_number?.toString().includes(searchLower) ||
-      loan.loan_number?.toString().includes(searchLower)
+      fullName.includes(searchLower) ||
+      member.namba?.toString().includes(searchLower) ||
+      member.simu?.includes(searchLower)
     );
   });
 
@@ -84,51 +76,42 @@ export default function CommunityLoanPage() {
     }
   };
 
-  // Format loan number with leading zeros
-  const formatLoanNumber = (num) => {
+  // Format member number with leading zeros
+  const formatMemberNumber = (num) => {
     if (!num) return "-";
     return String(num).padStart(3, "0");
-  };
-
-  // Determine loan status
-  const getLoanStatus = (loan) => {
-    if (loan.status) return loan.status;
-    if (loan.tarehe_kulejesha && new Date(loan.tarehe_kulejesha) < new Date()) {
-      return "Imelipwa";
-    }
-    return "Bado";
   };
 
   return (
     <div className="w-full max-w-[1400px] mx-auto">
       {/* Header Section */}
       <div className="mb-6">
-        {/* Title and Navigation Tabs */}
+        {/* Title and Tabs */}
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">Mikopo wa Jamii</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Wanachama</h1>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Tabs */}
         <div className="flex items-center gap-2 mb-4">
           <button
-            onClick={() => router.push("/second-book/biashara")}
+            onClick={() => router.push("/wanachama")}
             className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${
-              pathname === "/second-book/biashara"
-                ? "bg-gradient-to-r from-[#347CFF] to-[#2d6ce8] text-white shadow-md"
-                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+              pathname === "/wanachama"
+                ? "bg-[#347CFF] text-white shadow-md"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            Mikopo Wa biashara
+            Wanachama
           </button>
           <button
-            onClick={() => router.push("/second-book/jamii")}
+            onClick={() => router.push("/attendance")}
             className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${
-              pathname === "/second-book/jamii"
-                ? "bg-gradient-to-r from-[#347CFF] to-[#2d6ce8] text-white shadow-md"
-                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+              pathname === "/attendance"
+                ? "bg-[#347CFF] text-white shadow-md"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            Mikopo wa Jamii
+            Mahudhurio
           </button>
         </div>
 
@@ -156,21 +139,21 @@ export default function CommunityLoanPage() {
               placeholder="Tafuta mwanachama"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent text-gray-700 placeholder-gray-400"
+              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent text-gray-700 placeholder-gray-400"
             />
           </div>
 
-          {/* Add Loan Button */}
+          {/* Add Member Button */}
           <button
             onClick={() => setShowForm(!showForm)}
-            className="px-6 py-2.5 bg-[#347CFF] text-white font-semibold rounded-lg hover:bg-[#2d6ce8] transition-colors duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
+            className="px-6 py-3 bg-[#347CFF] text-white font-semibold rounded-lg hover:bg-[#2d6ce8] transition-colors duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
           >
-            Ongeza mkopo
+            Ongeza mwanachama
           </button>
         </div>
       </div>
 
-      {/* Add Loan Form Modal */}
+      {/* Add Member Form Modal */}
       <AnimatePresence>
         {showForm && (
           <motion.div
@@ -182,7 +165,7 @@ export default function CommunityLoanPage() {
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-gray-900">
-                Ongeza Mkopo wa Jamii
+                Ongeza Mwanachama Mpya
               </h2>
               <button
                 onClick={() => setShowForm(false)}
@@ -208,60 +191,128 @@ export default function CommunityLoanPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Chagua Mwanachama *
+                    Namba ya Mwanachama *
                   </label>
-                  <select
-                    value={form.member_id}
-                    onChange={(e) => {
-                      const selectedMember = members.find(
-                        (m) => m.id === Number(e.target.value)
-                      );
-                      setForm((prev) => ({
-                        ...prev,
-                        member_id: e.target.value,
-                        jinsia: selectedMember?.jinsia || "",
-                      }));
-                    }}
+                  <input
+                    type="text"
+                    value={form.namba}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, namba: e.target.value }))
+                    }
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
                     required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Jina la Kwanza *
+                  </label>
+                  <input
+                    type="text"
+                    value={form.fname}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, fname: e.target.value }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Jina la Mwisho *
+                  </label>
+                  <input
+                    type="text"
+                    value={form.lname}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, lname: e.target.value }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Tarehe ya Uwanachama
+                  </label>
+                  <input
+                    type="date"
+                    value={form.tarehe_uanachama}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        tarehe_uanachama: e.target.value,
+                      }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Namba ya Simu
+                  </label>
+                  <input
+                    type="tel"
+                    value={form.simu}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, simu: e.target.value }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
+                    placeholder="0768764572"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Cheo
+                  </label>
+                  <select
+                    value={form.cheo}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, cheo: e.target.value }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
                   >
-                    <option value="">Tafuta Mwanachama</option>
-                    {members.map((m) => (
-                      <option key={m.id || m.namba} value={m.id || m.namba}>
-                        {m.namba} - {m.fname} {m.lname}
-                      </option>
-                    ))}
+                    <option value="">Chagua Cheo</option>
+                    <option value="M/Kiti">M/Kiti</option>
+                    <option value="Katibu">Katibu</option>
+                    <option value="Mhasibu">Mhasibu</option>
+                    <option value="Nidhamu">Nidhamu</option>
+                    <option value="Mjumbe">Mjumbe</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Kiasi cha Mkopo (TZS) *
+                    Jinsia
+                  </label>
+                  <select
+                    value={form.jinsia}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, jinsia: e.target.value }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
+                  >
+                    <option value="Me">Me</option>
+                    <option value="Ke">Ke</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Hisa Anzia
                   </label>
                   <input
                     type="number"
-                    step="0.01"
-                    value={form.amount}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, amount: e.target.value }))
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Mfuko wa Mkopo
-                  </label>
-                  <input
-                    type="text"
-                    value={form.mfuko_wa_mkopo}
+                    value={form.hisa_anzia}
                     onChange={(e) =>
                       setForm((prev) => ({
                         ...prev,
-                        mfuko_wa_mkopo: e.target.value,
+                        hisa_anzia: e.target.value,
                       }))
                     }
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
@@ -270,46 +321,15 @@ export default function CommunityLoanPage() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Matumizi ya Mkopo
+                    Jamii Anzia
                   </label>
                   <input
-                    type="text"
-                    value={form.matumizi_ya_mkopo}
+                    type="number"
+                    value={form.jamii_anzia}
                     onChange={(e) =>
                       setForm((prev) => ({
                         ...prev,
-                        matumizi_ya_mkopo: e.target.value,
-                      }))
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Tarehe ya Kuchukua
-                  </label>
-                  <input
-                    type="date"
-                    value={form.tarehe}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, tarehe: e.target.value }))
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Tarehe ya Kulejesha
-                  </label>
-                  <input
-                    type="date"
-                    value={form.tarehe_kulejesha}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        tarehe_kulejesha: e.target.value,
+                        jamii_anzia: e.target.value,
                       }))
                     }
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
@@ -322,20 +342,22 @@ export default function CommunityLoanPage() {
                   type="submit"
                   className="px-6 py-2.5 bg-[#347CFF] text-white font-semibold rounded-lg hover:bg-[#2d6ce8] transition-colors duration-200"
                 >
-                  Hifadhi Mkopo
+                  Hifadhi Mwanachama
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setShowForm(false);
                     setForm({
-                      member_id: "",
-                      jinsia: "",
-                      amount: "",
-                      mfuko_wa_mkopo: "",
-                      matumizi_ya_mkopo: "",
-                      tarehe: "",
-                      tarehe_kulejesha: "",
+                      namba: "",
+                      fname: "",
+                      lname: "",
+                      jinsia: "Me",
+                      hisa_anzia: "",
+                      jamii_anzia: "",
+                      tarehe_uanachama: "",
+                      simu: "",
+                      cheo: "",
                     });
                   }}
                   className="px-6 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors duration-200"
@@ -348,12 +370,12 @@ export default function CommunityLoanPage() {
         )}
       </AnimatePresence>
 
-      {/* Loans Table */}
+      {/* Members Table */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        {loadingLoans ? (
+        {loading ? (
           <div className="p-12 text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#347CFF]"></div>
-            <p className="mt-4 text-gray-500">Inapakia mikopo...</p>
+            <p className="mt-4 text-gray-500">Inapakia wanachama...</p>
           </div>
         ) : (
           <>
@@ -362,81 +384,68 @@ export default function CommunityLoanPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      NAMBA YA MKOPO
+                      NO.
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      JINA LA MKOPA
+                      JINA
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      JINSIA
+                      TAREHE YA UWANACHAMA
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      TAREHE YA KUCHUA MKOPO
+                      SIMU
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      HALI
+                      CHEO
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredLoans.length === 0 ? (
+                  {filteredMembers.length === 0 ? (
                     <tr>
                       <td
                         colSpan={5}
                         className="px-6 py-12 text-center text-gray-500"
                       >
                         {searchQuery
-                          ? "Hakuna mkopo uliopatikana kwa utafutaji huu"
-                          : "Hakuna mikopo iliyorekodiwa"}
+                          ? "Hakuna mwanachama aliyepatikana kwa utafutaji huu"
+                          : "Hakuna wanachama waliorekodiwa"}
                       </td>
                     </tr>
                   ) : (
-                    filteredLoans.map((loan, index) => {
-                      const status = getLoanStatus(loan);
-                      return (
-                        <tr
-                          key={loan.id || index}
-                          className="hover:bg-gray-50 transition-colors duration-150"
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {formatLoanNumber(loan.loan_number || loan.id || index + 1)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {loan.member_name ||
-                              `${loan.member?.fname || ""} ${loan.member?.lname || ""}`.trim() ||
-                              "-"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {loan.member_gender || loan.member?.jinsia || "-"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {formatDate(loan.tarehe)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <button
-                              className={`px-4 py-1.5 font-medium rounded-lg transition-colors duration-200 ${
-                                status === "Imelipwa"
-                                  ? "bg-[#347CFF] text-white hover:bg-[#2d6ce8]"
-                                  : "bg-red-500 text-white hover:bg-red-600"
-                              }`}
-                            >
-                              {status}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
+                    filteredMembers.map((member, index) => (
+                      <tr
+                        key={member.namba || index}
+                        className="hover:bg-gray-50 transition-colors duration-150"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {formatMemberNumber(member.namba)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {member.fname} {member.lname}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {formatDate(member.tarehe_uanachama)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {member.simu || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {member.cheo || "-"}
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
             </div>
 
             {/* Table Footer with Count */}
-            {filteredLoans.length > 0 && (
+            {filteredMembers.length > 0 && (
               <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
                 <p className="text-sm text-gray-600">
-                  Jumla: <span className="font-semibold">{filteredLoans.length}</span>{" "}
-                  {filteredLoans.length === 1 ? "mkopo" : "mikopo"}
+                  Jumla: <span className="font-semibold">{filteredMembers.length}</span>{" "}
+                  {filteredMembers.length === 1 ? "mwanachama" : "wanachama"}
                 </p>
               </div>
             )}
@@ -446,3 +455,4 @@ export default function CommunityLoanPage() {
     </div>
   );
 }
+

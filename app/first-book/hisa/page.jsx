@@ -1,186 +1,414 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import FormInput from "./../../components/FormInput";
-import DataTable from "./../../components/DataTable";
-import { useMembers } from "../../hooks/useMembers";
 import { useHisa } from "../../hooks/useHisa";
+import { useMembers } from "../../hooks/useMembers";
+import { useWeeks } from "../../hooks/useWeeks";
+import { useRouter, usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function HisaPage() {
-  const { members, loading: loadingMembers, fetchMembers } = useMembers();
-  const { hisaList, loading: loadingHisa, fetchHisa, addHisa } = useHisa();
+  const { hisaList, loading, fetchHisa, addHisa } = useHisa();
+  const { members, fetchMembers } = useMembers();
+  const { weeks, fetchWeeks } = useWeeks();
+  const router = useRouter();
+  const pathname = usePathname();
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState("all"); // "all" or "week"
+  const [selectedWeek, setSelectedWeek] = useState("");
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     member_id: "",
     kiasi: "",
-    week_number: "",
+    week_id: "",
   });
-  const [selectedWeek, setSelectedWeek] = useState(""); // 🟢 for filtering
-  const [uniqueWeeks, setUniqueWeeks] = useState([]); // 🟢 store unique week numbers
 
-  // Load members + hisa records
   useEffect(() => {
-    fetchMembers();
     fetchHisa();
+    fetchMembers();
+    fetchWeeks();
   }, []);
 
-  // Extract unique week numbers from hisaList
-  useEffect(() => {
-    const weeks = [
-      ...new Set(
-        hisaList
-          .map((h) => h.week_number)
-          .filter((w) => w !== null && w !== undefined && w !== "")
-      ),
-    ];
-    setUniqueWeeks(weeks.sort((a, b) => a - b));
-  }, [hisaList]);
-
-  async function handleAdd(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!form.member_id || !form.kiasi || !form.week_number) {
-      alert("Tafadhali jaza taarifa zote muhimu!");
+    if (!form.member_id || !form.kiasi) {
+      alert("Tafadhali jaza taarifa zote muhimu.");
       return;
     }
 
     try {
-      await addHisa({
-        member_id: form.member_id,
-        kiasi: form.kiasi,
-        week_number: form.week_number,
+      await addHisa(form);
+      setForm({
+        member_id: "",
+        kiasi: "",
+        week_id: "",
       });
-
-      setForm({ member_id: "", kiasi: "", week_number: "" });
       fetchHisa();
+      setShowForm(false);
     } catch (error) {
-      console.error(
-        "Failed to add Hisa:",
-        error.response?.data || error.message
-      );
-      alert(
-        error.response?.data?.error ||
-          "Imeshindikana kuongeza hisa. Hakikisha taarifa ni sahihi."
-      );
+      alert("Imeshindwa kuongeza hisa. Tafadhali jaribu tena.");
     }
+  };
+
+  // Filter hisa records
+  let filteredHisa = hisaList || [];
+
+  // Filter by week if selected
+  if (filterType === "week" && selectedWeek) {
+    filteredHisa = filteredHisa.filter(
+      (h) => h.week_number?.toString() === selectedWeek
+    );
   }
 
-  // 🔹 Filter Hisa records by selected week number
-  const filteredHisa = selectedWeek
-    ? hisaList.filter((h) => String(h.week_number) === String(selectedWeek))
-    : hisaList;
+  // Filter by search query
+  if (searchQuery) {
+    filteredHisa = filteredHisa.filter((h) => {
+      const memberName = h.member_name?.toLowerCase() || "";
+      const searchLower = searchQuery.toLowerCase();
+      return memberName.includes(searchLower);
+    });
+  }
 
-  const formatted = (filteredHisa || []).map((h) => ({
-    Member: h.member_name || "-",
-    Hisa: h.kiasi,
-    Week: h.week_number || "-",
-    Date: new Date(h.tarehe).toLocaleString(),
-  }));
+  // Get unique week numbers for filter
+  const weekNumbers = Array.from(
+    new Set((hisaList || []).map((h) => h.week_number).filter(Boolean))
+  ).sort((a, b) => a - b);
+
+  // Format member number with leading zeros
+  const formatMemberNumber = (num) => {
+    if (!num) return "-";
+    return String(num).padStart(3, "0");
+  };
+
+  // Navigation tabs
+  const tabs = [
+    { id: "hisa", label: "Hisa", path: "/first-book/hisa" },
+    { id: "jamii", label: "Jamii", path: "/first-book/jamii" },
+    { id: "adhabu", label: "Adhabu", path: "#" },
+    { id: "ada", label: "Ada za wanachama", path: "#" },
+    { id: "mapato", label: "Mapato Mengineyo", path: "#" },
+  ];
 
   return (
-    <section className="max-w-5xl mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">
-        Hisa za Wanachama
-      </h1>
-
-      {/* --- Add Hisa Form --- */}
-      <form
-        onSubmit={handleAdd}
-        className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4"
-      >
-        {/* Member dropdown */}
-        <div>
-          <label
-            htmlFor="member"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Chagua Mwanachama
-          </label>
-          <select
-            id="member"
-            value={form.member_id}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, member_id: e.target.value }))
-            }
-            className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">
-              {loadingMembers ? "Inapakia..." : "Tafuta Mwanachama"}
-            </option>
-            {members.map((m) => (
-              <option key={`${m.id}-${m.namba}`} value={m.id}>
-                {m.namba} - {m.fname} {m.lname}
-              </option>
-            ))}
-          </select>
+    <div className="w-full max-w-[1400px] mx-auto">
+      {/* Header Section */}
+      <div className="mb-6">
+        {/* Title */}
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-gray-900">Hisa</h1>
         </div>
 
-        {/* Hisa input */}
-        <FormInput
-          id="kiasi"
-          label="Kiasi cha Hisa (TZS)"
-          type="number"
-          value={form.kiasi}
-          onChange={(e) => setForm((f) => ({ ...f, kiasi: e.target.value }))}
-        />
-
-        {/* Week number input */}
-        <FormInput
-          id="week_number"
-          label="Namba ya Wiki"
-          type="number"
-          value={form.week_number}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, week_number: e.target.value }))
-          }
-        />
-
-        {/* Submit button */}
-        <div className="md:col-span-3 flex justify-end mt-4">
-          <button
-            type="submit"
-            className="px-5 py-2 bg-primary text-white rounded-lg shadow hover:bg-primary/90 transition"
-          >
-            Ongeza Rekodi
-          </button>
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                if (tab.path !== "#") {
+                  router.push(tab.path);
+                }
+              }}
+              className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${
+                pathname === tab.path
+                  ? "bg-gradient-to-r from-[#347CFF] to-[#2d6ce8] text-white shadow-md"
+                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-      </form>
 
-      {/* --- Hisa Table --- */}
-      <div className="mt-10">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-700">
-            Rekodi za Hisa
-          </h2>
-
-          {/* 🔹 Week Filter Dropdown */}
+        {/* Filter and Search Section */}
+        <div className="flex items-center gap-4">
+          {/* Filter Buttons */}
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Chuja kwa Wiki:</label>
+            <button
+              onClick={() => {
+                setFilterType("all");
+                setSelectedWeek("");
+              }}
+              className={`px-5 py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 ${
+                filterType === "all"
+                  ? "bg-[#347CFF] text-white shadow-md"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilterType("week")}
+              className={`px-5 py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 ${
+                filterType === "week"
+                  ? "bg-[#347CFF] text-white shadow-md"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Week
+            </button>
+          </div>
+
+          {/* Week Selector (shown when Week filter is active) */}
+          {filterType === "week" && (
             <select
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent text-sm"
             >
-              <option value="">Zote</option>
-              {uniqueWeeks.map((w) => (
-                <option key={w} value={w}>
-                  Wiki {w}
+              <option value="">Chagua Wiki</option>
+              {weekNumbers.map((week) => (
+                <option key={week} value={week}>
+                  Wiki {week}
                 </option>
               ))}
             </select>
-          </div>
-        </div>
+          )}
 
-        {loadingHisa ? (
-          <p>Inapakia rekodi za hisa...</p>
-        ) : (
-          <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-auto">
-            <DataTable
-              columns={["Member", "Hisa", "Week", "Date"]}
-              rows={formatted}
+          {/* Search Bar */}
+          <div className="flex-1 relative">
+            <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
+              <svg
+                className="w-5 h-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Tafuta mwanachama"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent text-gray-700 placeholder-gray-400"
             />
           </div>
+
+          {/* Add Hisa Button */}
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="px-6 py-2.5 bg-[#347CFF] text-white font-semibold rounded-lg hover:bg-[#2d6ce8] transition-colors duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
+          >
+            Ongeza Hisa
+          </button>
+        </div>
+      </div>
+
+      {/* Add Hisa Form Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="mb-6 bg-white rounded-xl shadow-lg border border-gray-200 p-6"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">
+                Ongeza Hisa Mpya
+              </h2>
+              <button
+                onClick={() => setShowForm(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Chagua Mwanachama *
+                  </label>
+                  <select
+                    value={form.member_id}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, member_id: e.target.value }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
+                    required
+                  >
+                    <option value="">Tafuta Mwanachama</option>
+                    {members.map((m) => (
+                      <option key={m.id || m.namba} value={m.id || m.namba}>
+                        {m.namba} - {m.fname} {m.lname}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Kiasi (TZS) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.kiasi}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, kiasi: e.target.value }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Wiki (Si lazima)
+                  </label>
+                  <select
+                    value={form.week_id}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, week_id: e.target.value }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#347CFF] focus:border-transparent"
+                  >
+                    <option value="">Chagua Wiki</option>
+                    {weeks.map((week) => (
+                      <option key={week.id} value={week.id}>
+                        Wiki {week.week_number}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-[#347CFF] text-white font-semibold rounded-lg hover:bg-[#2d6ce8] transition-colors duration-200"
+                >
+                  Hifadhi Hisa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    setForm({
+                      member_id: "",
+                      kiasi: "",
+                      week_id: "",
+                    });
+                  }}
+                  className="px-6 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                >
+                  Ghairi
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Hisa Table */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#347CFF]"></div>
+            <p className="mt-4 text-gray-500">Inapakia hisa...</p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                      No.
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                      Jina la mwanachama
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                      Hisa
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                      Mabadiliko
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                      Hali
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredHisa.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-6 py-12 text-center text-gray-500"
+                      >
+                        {searchQuery || (filterType === "week" && selectedWeek)
+                          ? "Hakuna rekodi zilizopatikana kwa utafutaji huu"
+                          : "Hakuna rekodi za hisa zilizorekodiwa"}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredHisa.map((hisa, index) => (
+                      <tr
+                        key={hisa.id || index}
+                        className="hover:bg-gray-50 transition-colors duration-150"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {formatMemberNumber(hisa.member_number || hisa.member?.namba)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {hisa.member_name ||
+                            `${hisa.member?.fname || ""} ${hisa.member?.lname || ""}`.trim() ||
+                            "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                          {hisa.kiasi ? parseFloat(hisa.kiasi).toLocaleString() : "0"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {hisa.changed_by || hisa.mabadiliko || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button className="px-4 py-1.5 bg-[#347CFF] text-white font-medium rounded-lg hover:bg-[#2d6ce8] transition-colors duration-200">
+                            Tazama
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table Footer with Count */}
+            {filteredHisa.length > 0 && (
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                <p className="text-sm text-gray-600">
+                  Jumla: <span className="font-semibold">{filteredHisa.length}</span>{" "}
+                  {filteredHisa.length === 1 ? "rekodi" : "rekodi"}
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
-    </section>
+    </div>
   );
 }
